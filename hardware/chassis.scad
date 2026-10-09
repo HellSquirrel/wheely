@@ -42,7 +42,7 @@ tt_hole_to_can = 15.0;   // hole pair to the gearbox/can junction (approx)
 ear_t          = 3;      // bracket ear thickness (kit acrylic is 3)
 
 // Plate must clear the top of the gearbox: shaft at wheel_r, gearbox half-width above it.
-plate_z    = wheel_r + tt_w / 2 + 4;   // 4 mm over the gearbox: room for a caster spacer and for the motor to breathe
+plate_z    = wheel_r + tt_w / 2 + 8;   // 8 mm over the gearbox: a 7.5 mm saddle block ties the motor ears together
 
 // ---------- plate ----------
 plate_l    = 205;    // overall; you place it on the bed
@@ -116,14 +116,22 @@ module motor_mount(side) {   // side = +1 left, -1 right
                 translate([x0, y, plate_z - ear_h]) cube([ear_len, ear_t, ear_h + 0.01]);
             // saddle: solid across both ears, from the plate down to just above the gearbox
             translate([x0, y_out - mount_w, plate_z - saddle_h]) cube([ear_len, mount_w, saddle_h + 0.01]);
-            // gussets along X on the front and back edge of each ear: wedge from plate to ear face
-            for (y = [y_out - ear_t, y_out - mount_w], xs = [-1, 1])
-                translate([xs > 0 ? x0 + ear_len : x0, y, plate_z - ear_h + 6])
-                    mirror([xs < 0 ? 1 : 0, 0, 0])
-                        hull() {
-                            cube([0.01, ear_t, ear_h - 6]);
-                            translate([0, 0, ear_h - 6 - 0.01]) cube([gusset_l, ear_t, 0.01]);
-                        }
+            // FRONT gussets only (towards the motor can, where the gearbox face is plain). Nothing may
+            // exist behind the ears' rear edge: the motor's O4 pegs live there, 8..12 mm from the shaft.
+            for (y = [y_out - ear_t, y_out - mount_w])
+                translate([x0 + ear_len, y, plate_z - ear_h + 6])
+                    hull() {
+                        cube([0.01, ear_t, ear_h - 6]);
+                        translate([0, 0, ear_h - 6 - 0.01]) cube([gusset_l, ear_t, 0.01]);
+                    }
+            // inner ear: two fins on its inboard face (away from the pocket), at its front and rear edges,
+            // clear of the bolt holes so the nuts seat flat
+            for (xf = [x0, x0 + ear_len - 3])
+                translate([xf, y_out - mount_w, plate_z - ear_h + 6])
+                    hull() {
+                        cube([3, 0.01, ear_h - 6]);
+                        translate([0, -6, ear_h - 6 - 0.01]) cube([3, 6, 0.01]);
+                    }
         }
         // two M3 SLOTS through both ears, one above the other, centred on the shaft height,
         // elongated along the motor so a 2 mm error in the hole position doesn't matter
