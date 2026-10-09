@@ -57,7 +57,7 @@ caster_cbore_d  = 9;  caster_cbore_h = 2.5;   // bolt head recess over the slot 
 
 // ---------- breadboard (MEASURE) ----------
 bb_l = 170; bb_w = 50; bb_h = 10;  // measured 2026-10-09
-bb_pos = [plate_l / 2 - bb_l / 2 - 3, 30];   // left side, pushed to the front edge: the sonar case plugs into the front rows and looks out over the edge; USB exits at the rear
+bb_pos = [-plate_l / 2 + bb_l / 2 + 2, 30];  // left side, pushed to the REAR edge (USB cable exits backwards); the sonar cradle takes the front
 lip_h  = 2.5; lip_t = 2;
 
 // ---------- battery holder 4xAA (MEASURE) ----------
@@ -69,9 +69,19 @@ strap_slot = [4, 14];               // zip-tie / velcro slot, X by Y
 bat_wire_corner = [1, 1];           // [+1/-1 along X, +1/-1 along Y]: the corner that gets the notch
 bat_wire_notch  = 12;               // notch width along the lip
 
-// ---------- sonar ----------
-// The printed i-Boxlt 'Bread Board Mount' case (49.2 x 23.4 mm, no screw holes) stands the sensor
-// on its own pins in the breadboard's front rows. Nothing on the plate for it.
+// ---------- sonar cradle ----------
+// The printed i-Boxlt case (49.2 wide, 23.4 tall, no screw holes) can't stand in breadboard rows
+// because the sensor pins carry jumper connectors. So: two towers at the front edge support the
+// case's ends, the connectors hang in the open channel between them, wires leave to the rear.
+sonar_case_w = 49.2;   // from the 3MF
+sonar_case_d = 19.5;   // ESTIMATE: assembled front-to-back depth of the case (front shell 11.9 + back 8.2 minus the overlap). Measure.
+sonar_y      = 0;      // cradle centre across the plate
+sonar_foot   = 15;     // width of each tower under the case ends; channel between = case_w - 2*foot
+sonar_ped_h  = 20;     // tower height: jumper connectors need ~14 mm below the pins, plus bend room
+sonar_wall_h = 12;     // end walls rise this much above the towers to locate the case
+sonar_wall_t = 3;
+sonar_lip    = 2;      // front/rear lips, 5 mm tall, keep it from sliding
+sonar_x_front = plate_l / 2 - 3;   // front face of the cradle
 
 // =====================================================================
 module rounded_plate(l, w, t, r) {
@@ -165,6 +175,26 @@ module side_rails(size, pos) {   // two low walls along the long sides; short en
 }
 
 rib_y = 22;   // inboard of the motor ears (which start at motor_y - 2*ear_t - tt_thk), clear of the caster block and strap slots
+module sonar_cradle() {
+    pocket_d = sonar_case_d + clr;                 // X
+    pocket_w = sonar_case_w + clr;                 // Y
+    x1 = sonar_x_front; x0 = x1 - pocket_d - 2 * sonar_lip;
+    z0 = plate_z + plate_t;
+    translate([0, sonar_y, 0]) union() {
+        // two towers under the case ends, full cradle depth, with the end wall rising above
+        for (sy = [-1, 1]) {
+            translate([x0, sy > 0 ? pocket_w / 2 - sonar_foot : -pocket_w / 2, z0 - 0.01])
+                cube([pocket_d + 2 * sonar_lip, sonar_foot, sonar_ped_h + 0.01]);
+            translate([x0, sy > 0 ? pocket_w / 2 : -pocket_w / 2 - sonar_wall_t, z0 - 0.01])
+                cube([pocket_d + 2 * sonar_lip, sonar_wall_t, sonar_ped_h + sonar_wall_h + 0.01]);
+        }
+        // front and rear lips on top of the towers only (channel stays open front-to-back below the case)
+        for (sy = [-1, 1], xl = [x0, x1 - sonar_lip])
+            translate([xl, sy > 0 ? pocket_w / 2 - sonar_foot : -pocket_w / 2, z0 + sonar_ped_h - 0.01])
+                cube([sonar_lip, sonar_foot, 5 + 0.01]);
+    }
+}
+
 module ribs() {
     for (y = [-rib_y, rib_y])
         translate([-plate_l / 2 + 10, y - rib_t / 2, plate_z - rib_h])
@@ -211,6 +241,7 @@ module chassis() {
             ribs();
             for (s = [-1, 1]) motor_mount(s);
             caster_mount();
+            sonar_cradle();
             // PRINT ORIENTATION: top face on the bed, ears pointing up, no supports.
             // That only works while the top face is flat, so the locating lips below are
             // off by default. Velcro / adhesive holds the breadboard, zip ties the battery.
@@ -233,6 +264,6 @@ if (is_undef(coupon_only)) chassis();
 if (show_ghosts) for (s = [-1, 1]) motor_ghost(s);
 // ghost: breadboard and the sonar case standing on its front rows
 if (show_ghosts) %translate([bb_pos[0], bb_pos[1], plate_z + plate_t]) linear_extrude(bb_h) square([bb_l, bb_w], center = true);
-if (show_ghosts) %translate([bb_pos[0] + bb_l / 2 - 12, bb_pos[1], plate_z + plate_t + bb_h]) linear_extrude(23.4) square([23.4, 49.2], center = true);
+if (show_ghosts) %translate([sonar_x_front - sonar_lip - sonar_case_d / 2 - clr / 2, sonar_y, plate_z + plate_t + sonar_ped_h]) linear_extrude(23.4) square([sonar_case_d, sonar_case_w], center = true);
 if (show_ghosts) %translate([bat_pos[0], bat_pos[1], plate_z + plate_t]) linear_extrude(bat_h) square([bat_l, bat_w], center = true);
 if (show_ghosts) %translate([caster_x, 0, 0]) { translate([0, 0, caster_h - 1]) linear_extrude(1) square(caster_plate, center = true); translate([6, 0, 12.5]) rotate([90, 0, 0]) cylinder(d = 25, h = 10, center = true); }
