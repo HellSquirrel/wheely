@@ -8,6 +8,7 @@
 // Everything marked MEASURE is a placeholder until measured on the real part.
 
 // ---------- print / fit ----------
+lips       = false;  // raised lips on the top face. true = needs supports under the whole plate; see chassis()
 clr        = 0.5;    // clearance added to pockets and lips
 hole_m3    = 3.4;    // M3 clearance hole
 plate_t    = 4;      // plate thickness
@@ -151,7 +152,18 @@ module ribs() {
             cube([plate_l - 20, rib_t, rib_h + 0.01]);
 }
 
+module outline_groove(size, pos) {   // 0.6 mm deep, 1 mm wide groove around a footprint, as a placement guide
+    translate([pos[0], pos[1], plate_z + plate_t - 0.6])
+        linear_extrude(1)
+            difference() {
+                offset(1) square([size[0] + clr, size[1] + clr], center = true);
+                square([size[0] + clr, size[1] + clr], center = true);
+            }
+}
+
 module plate_cutouts() {
+    outline_groove([bb_l, bb_w], bb_pos);
+    outline_groove([bat_l, bat_w], bat_pos);
     // wheel wells: notch the plate edge around each wheel
     for (sy = [-1, 1])
         translate([motor_x - (wheel_r + well_margin), sy > 0 ? motor_y - 1 : -(plate_w / 2 + 1), plate_z - 1])
@@ -180,12 +192,17 @@ module chassis() {
             ribs();
             for (s = [-1, 1]) motor_ears(s);
             caster_mount();
-            side_rails([bb_l, bb_w], bb_pos);
-            difference() {
-                lip([bat_l, bat_w], bat_pos);
-                // wire notch: cut the lip at the chosen corner, on the X-facing end
-                translate([bat_pos[0] + bat_wire_corner[0] * (bat_l / 2 + 2), bat_pos[1] + bat_wire_corner[1] * (bat_w / 2 - bat_wire_notch / 2 - 2), plate_z + plate_t - 1])
-                    linear_extrude(lip_h + 2) square([2 * lip_t + clr + 4, bat_wire_notch], center = true);
+            // PRINT ORIENTATION: top face on the bed, ears pointing up, no supports.
+            // That only works while the top face is flat, so the locating lips below are
+            // off by default. Velcro / adhesive holds the breadboard, zip ties the battery.
+            if (lips) {
+                side_rails([bb_l, bb_w], bb_pos);
+                difference() {
+                    lip([bat_l, bat_w], bat_pos);
+                    // wire notch: cut the lip at the chosen corner, on the X-facing end
+                    translate([bat_pos[0] + bat_wire_corner[0] * (bat_l / 2 + 2), bat_pos[1] + bat_wire_corner[1] * (bat_w / 2 - bat_wire_notch / 2 - 2), plate_z + plate_t - 1])
+                        linear_extrude(lip_h + 2) square([2 * lip_t + clr + 4, bat_wire_notch], center = true);
+                }
             }
         }
         plate_cutouts();
