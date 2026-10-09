@@ -17,8 +17,8 @@ corner_r   = 8;
 $fn        = 48;
 
 // ---------- wheel / ride height ----------
-wheel_d    = 65;     // MEASURE: kit wheel diameter (65 is the common TT wheel)
-wheel_w    = 26;     // MEASURE: wheel width (26 is common)
+wheel_d    = 60;     // measured 2026-10-09
+wheel_w    = 30;     // measured 2026-10-09
 wheel_r    = wheel_d / 2;
 
 // ---------- TT motor (from drawing) ----------
@@ -51,7 +51,7 @@ caster_cbore_d  = 6.5;  caster_cbore_h = 2.5;   // M3 pan head recess
 
 // ---------- breadboard (MEASURE) ----------
 bb_l = 170; bb_w = 50; bb_h = 10;  // measured 2026-10-09
-bb_pos = [-12, 30];                 // centre on the plate, left side; ends left open for the USB cable
+bb_pos = [plate_l / 2 - bb_l / 2 - 3, 30];   // left side, pushed to the front edge: the sonar case plugs into the front rows and looks out over the edge; USB exits at the rear
 lip_h  = 2.5; lip_t = 2;
 
 // ---------- battery holder 4xAA (MEASURE) ----------
@@ -59,10 +59,9 @@ bat_l = 70; bat_w = 60; bat_h = 20;  // measured 2026-10-09; switch is recessed 
 bat_pos = [5, -33];                 // right side, forward of the wheel wells
 strap_slot = [4, 14];               // zip-tie / velcro slot, X by Y
 
-// ---------- sonar holder (MEASURE your print) ----------
-sonar_base = [20, 45];              // its base footprint X by Y
-sonar_holes = [0, 36];              // hole pattern X by Y spacing
-sonar_x = plate_l / 2 - 12;
+// ---------- sonar ----------
+// The printed i-Boxlt 'Bread Board Mount' case (49.2 x 23.4 mm, no screw holes) stands the sensor
+// on its own pins in the breadboard's front rows. Nothing on the plate for it.
 
 // =====================================================================
 module rounded_plate(l, w, t, r) {
@@ -155,11 +154,6 @@ module plate_cutouts() {
         for (dx = [-1, 1], dy = (caster_hole_sep[1] > 0 ? [-1, 1] : [0]))
             translate([dx * caster_hole_sep[0] / 2, dy * caster_hole_sep[1] / 2, 0])
                 cylinder(d = hole_m3, h = plate_t + 2);
-    // sonar holder holes at the front edge
-    translate([sonar_x, 0, plate_z - 1])
-        for (dx = (sonar_holes[0] > 0 ? [-1, 1] : [0]), dy = (sonar_holes[1] > 0 ? [-1, 1] : [0]))
-            translate([dx * sonar_holes[0] / 2, dy * sonar_holes[1] / 2, 0])
-                cylinder(d = hole_m3, h = plate_t + 2);
     // battery strap slots, one each side of the holder
     for (s = [-1, 1])
         translate([bat_pos[0] + s * (bat_l / 2 + 4), bat_pos[1], plate_z - 1])
@@ -185,3 +179,7 @@ module chassis() {
 
 chassis();
 for (s = [-1, 1]) motor_ghost(s);
+// ghost: breadboard and the sonar case standing on its front rows
+%translate([bb_pos[0], bb_pos[1], plate_z + plate_t]) linear_extrude(bb_h) square([bb_l, bb_w], center = true);
+%translate([bb_pos[0] + bb_l / 2 - 12, bb_pos[1], plate_z + plate_t + bb_h]) linear_extrude(23.4) square([23.4, 49.2], center = true);
+%translate([bat_pos[0], bat_pos[1], plate_z + plate_t]) linear_extrude(bat_h) square([bat_l, bat_w], center = true);
