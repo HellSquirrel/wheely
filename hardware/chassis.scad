@@ -48,10 +48,10 @@ motor_y    = plate_w / 2 - 6;    // outer ear face Y; wheels sit in wells cut in
 well_margin = 4;                 // clearance around the wheel in its well
 
 // ---------- caster: 1" swivel plate caster, from photos 2026-10-09 ----------
-caster_h        = 41;     // floor to its mounting face. ESTIMATE +-3 mm: confirm with one straight measurement
+caster_h        = 35;     // floor to its mounting face, measured 2026-10-09 (approx)
 caster_plate    = 40;     // square mounting plate
-caster_hole_sep = [30, 30]; // hole pattern, ESTIMATE +-1.5 mm, absorbed by the slots below
-caster_slot     = [4.5, 7];  // slotted holes, long axis pointing at the pattern centre
+caster_hole_sep = [30, 23.5]; // hole pattern, measured: 30 one way, 23-24 the other (asymmetric). Rotate the caster to match
+caster_slot     = [4.5, 7];  // slotted holes (caster holes are ~5 mm; M3 or M4 bolts), long axis pointing at the pattern centre
 caster_x        = 58;            // bolts counterbored from the top; fit them before the breadboard goes on
 caster_cbore_d  = 9;  caster_cbore_h = 2.5;   // bolt head recess over the slot (M3 or M4 pan head + washer)
 
@@ -74,10 +74,10 @@ bat_wire_notch  = 12;               // notch width along the lip
 // because the sensor pins carry jumper connectors. So: two towers at the front edge support the
 // case's ends, the connectors hang in the open channel between them, wires leave to the rear.
 sonar_case_w = 49.2;   // from the 3MF
-sonar_case_d = 19.5;   // ESTIMATE: assembled front-to-back depth of the case (front shell 11.9 + back 8.2 minus the overlap). Measure.
+sonar_case_d = 19;     // assembled front-to-back depth, confirmed 2026-10-09
 sonar_y      = 0;      // cradle centre across the plate
-sonar_foot   = 15;     // width of each tower under the case ends; channel between = case_w - 2*foot
-sonar_ped_h  = 20;     // tower height: jumper connectors need ~14 mm below the pins, plus bend room
+sonar_foot   = 17;     // width of each tower under the case ends; channel between = 15 mm, the pin opening is 10
+sonar_ped_h  = 15;     // tower height: connectors reach 10 mm below the case, plus bend room
 sonar_wall_h = 12;     // end walls rise this much above the towers to locate the case
 sonar_wall_t = 3;
 sonar_lip    = 2;      // front/rear lips, 5 mm tall, keep it from sliding
