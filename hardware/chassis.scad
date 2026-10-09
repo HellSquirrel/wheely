@@ -36,8 +36,8 @@ tt_hole_sep    = 17.6;   // the two M3 holes, centre to centre, vertical when mo
 // The ears sit from 15 to 35 mm, clear of the pegs, and the bolt holes are SLOTS to absorb the 2 mm disagreement.
 tt_end_to_shaft = 14.0;
 tt_peg_x       = 11.25;  // peg centre from the shaft, O4, ~2 mm tall, both faces
-tt_hole_x      = 21.5;   // bolt slot centre from the shaft (between the two drawings' 20.6 and 22.5)
-tt_hole_slot   = 4;      // slot length along the motor
+tt_hole_x      = 20;     // bolt hole centre from the shaft, MEASURED on the kit motor 2026-10-09
+tt_hole_slot   = 1;      // slot length along the motor: measured position, so just a touch of play
 tt_hole_to_can = 15.0;   // hole pair to the gearbox/can junction (approx)
 ear_t          = 3;      // bracket ear thickness (kit acrylic is 3)
 
