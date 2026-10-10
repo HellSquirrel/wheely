@@ -77,7 +77,7 @@ bat_wire_notch  = 12;               // notch width along the lip
 // because the sensor pins carry jumper connectors. So: two towers at the front edge support the
 // case's ends, the connectors hang in the open channel between them, wires leave to the rear.
 sonar_case_w = 49.2;   // from the 3MF
-sonar_case_d = 20.5;   // assembled front-to-back depth: the 19 mm estimate was too tight on the coupon (2026-10-10); shells are 11.9 + 8.2 in the 3MF
+sonar_case_d = 24;     // assembled front-to-back OUTSIDE depth per the user (20 inside + 2 mm walls each side), 2026-10-10
 sonar_y      = 0;      // cradle centre across the plate
 sonar_foot   = 17;     // width of each tower under the case ends; channel between = 15 mm, the pin opening is 10
 sonar_ped_h  = 20;     // tower height: raised 5 mm on request (2026-10-10); connectors need 10 mm below the case
