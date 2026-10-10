@@ -80,7 +80,7 @@ sonar_case_w = 49.2;   // from the 3MF
 sonar_case_d = 20.5;   // assembled front-to-back depth: the 19 mm estimate was too tight on the coupon (2026-10-10); shells are 11.9 + 8.2 in the 3MF
 sonar_y      = 0;      // cradle centre across the plate
 sonar_foot   = 17;     // width of each tower under the case ends; channel between = 15 mm, the pin opening is 10
-sonar_ped_h  = 15;     // tower height: connectors reach 10 mm below the case, plus bend room
+sonar_ped_h  = 20;     // tower height: raised 5 mm on request (2026-10-10); connectors need 10 mm below the case
 sonar_wall_h = 12;     // end walls rise this much above the towers to locate the case
 sonar_wall_t = 3;
 sonar_lip    = 2;      // front/rear lips, 5 mm tall, keep it from sliding
