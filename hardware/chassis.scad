@@ -85,6 +85,12 @@ sonar_wall_h = 12;     // end walls rise this much above the towers to locate th
 sonar_wall_t = 3;
 sonar_lip    = 2;      // front/rear lips, 5 mm tall, keep it from sliding
 sonar_x_front = plate_l / 2 - 3;   // front face of the cradle
+// The cradle is a SEPARATE PART (the plate prints top-face-down, so nothing may stand on the top face).
+// It bolts on with two M3s, one down through each tower: heads recessed into the tower tops under the
+// case, nuts under the plate. These are the bolt positions on the plate.
+sonar_bolt_x = sonar_x_front - (sonar_case_d + clr + 2 * sonar_lip) / 2;
+sonar_bolt_y = (sonar_case_w + clr) / 2 - sonar_foot / 2;
+sonar_cbore_d = 6.5; sonar_cbore_h = 3;
 
 // =====================================================================
 module rounded_plate(l, w, t, r) {
@@ -196,6 +202,15 @@ module sonar_cradle() {
     }
 }
 
+// bolt holes down through the towers, with a head recess in each tower top
+module sonar_cradle_bolt_cuts() {
+    for (sy = [-1, 1])
+        translate([sonar_bolt_x, sonar_y + sy * sonar_bolt_y, 0]) {
+            translate([0, 0, -1]) cylinder(d = hole_m3, h = 200);
+            translate([0, 0, plate_z + plate_t + sonar_ped_h - sonar_cbore_h]) cylinder(d = sonar_cbore_d, h = 50);
+        }
+}
+
 module ribs() {
     for (y = [-rib_y, rib_y])
         translate([-plate_l / 2 + 10, y - rib_t / 2, plate_z - rib_h])
@@ -214,6 +229,10 @@ module outline_groove(size, pos) {   // 0.6 mm deep, 1 mm wide groove around a f
 module plate_cutouts() {
     outline_groove([bb_l, bb_w], bb_pos);
     outline_groove([bat_l, bat_w], bat_pos);
+    outline_groove([sonar_case_d + clr + 2 * sonar_lip, sonar_case_w + clr + 2 * sonar_wall_t], [sonar_bolt_x, sonar_y]);
+    // sonar cradle bolts
+    for (sy = [-1, 1])
+        translate([sonar_bolt_x, sonar_y + sy * sonar_bolt_y, plate_z - 1]) cylinder(d = hole_m3, h = plate_t + 2);
     // wheel wells: notch the plate edge around each wheel
     for (sy = [-1, 1])
         translate([motor_x - (wheel_r + well_margin), sy > 0 ? motor_y + 0.5 : -(plate_w / 2 + 1), plate_z - 1])
@@ -242,7 +261,7 @@ module chassis() {
             ribs();
             for (s = [-1, 1]) motor_mount(s);
             caster_mount();
-            sonar_cradle();
+            // sonar_cradle() is a separate part now; see sonar_holder_standalone.scad
             // PRINT ORIENTATION: top face on the bed, ears pointing up, no supports.
             // That only works while the top face is flat, so the locating lips below are
             // off by default. Velcro / adhesive holds the breadboard, zip ties the battery.
