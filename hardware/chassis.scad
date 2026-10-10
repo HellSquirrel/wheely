@@ -39,7 +39,6 @@ tt_peg_x       = 11.25;  // peg centre from the shaft, O4, ~2 mm tall, both face
 tt_hole_x      = 20;     // bolt hole centre from the shaft, MEASURED on the kit motor 2026-10-09
 tt_hole_slot   = 1;      // slot length along the motor: measured position, so just a touch of play
 tt_hole_to_can = 15.0;   // hole pair to the gearbox/can junction (approx)
-ear_t          = 3;      // bracket ear thickness (kit acrylic is 3)
 
 // Plate must clear the top of the gearbox: shaft at wheel_r, gearbox half-width above it.
 plate_z    = wheel_r + tt_w / 2 + 8;   // 8 mm over the gearbox: a 7.5 mm saddle block ties the motor ears together
@@ -48,7 +47,7 @@ plate_z    = wheel_r + tt_w / 2 + 8;   // 8 mm over the gearbox: a 7.5 mm saddle
 plate_l    = 205;    // overall; you place it on the bed
 plate_w    = 136;
 motor_x    = -plate_l / 2 + 40;  // shaft axis X; motors at the rear. Ears are in FRONT of the shaft, cans point forward under the plate
-motor_y    = plate_w / 2 - 6;    // outer ear face Y; wheels sit in wells cut into the plate edge
+motor_y    = plate_w / 2 - 6;    // outboard face of the gearbox; wheels sit in wells cut into the plate edge
 well_margin = 4;                 // clearance around the wheel in its well
 
 // ---------- caster: 1" swivel plate caster, from photos 2026-10-09 ----------
@@ -93,63 +92,52 @@ module rounded_plate(l, w, t, r) {
         offset(r) offset(-r) square([l, w], center = true);
 }
 
-// One motor mount, mirrored for the other side. Two 3 mm ears either side of the gearbox,
-// joined at the top by a solid saddle that fills the gap between gearbox and plate, so the
-// ears hang from a 24 x 25 mm block instead of a 3 mm edge. Gussets run along X (front and
-// back of each ear) where there is always plate above them.
-ear_len   = 18;      // ears span 15..33 mm from the shaft: pegs (to ~12) behind, can (from ~36) in front
+// One motor mount, mirrored for the other side. SINGLE-SIDED: one thick ear on the inboard side
+// of the gearbox, two M3 bolts through ear + gearbox, nuts on the outboard face. No pocket, so the
+// gearbox thickness (which varies between clones) cannot matter; the wheel side keeps the whole shaft.
+// Nothing exists in the gearbox face plane beyond the ear: the O4 pegs sit 8..12 mm from the shaft
+// behind it, the motor can starts ~36 mm in front. The ear hangs from a block above the gearbox.
+ear_t     = 5;       // inboard ear thickness
+ear_len   = 18;      // ears span 15..33 mm from the shaft
 ear_h     = plate_z - (wheel_r - tt_hole_sep / 2 - 5);   // reach 5 mm below the lower hole
-saddle_h  = plate_z - (wheel_r + tt_w / 2) - 0.5;         // down to 0.5 mm above the gearbox
-gusset_l  = 8;                                              // how far the gussets reach along X
-pocket_w  = tt_thk + clr;                                   // gearbox pocket between the ears
-mount_w   = 2 * ear_t + pocket_w;                           // overall width across both ears
+block_h   = plate_z - (wheel_r + tt_w / 2) - 0.5;         // down to 0.5 mm above the gearbox top
+block_w   = tt_thk + 1 + ear_t;                            // over the gearbox (+1 slop) and the ear
+mount_w   = block_w;
 
 module motor_mount(side) {   // side = +1 left, -1 right
-    x0 = motor_x + 15;                                      // ear block rear edge, 15 mm in front of the shaft (pegs end at ~13.3)
-    y_out = motor_y;                                        // outer face of the outer ear
-    // build in +Y then mirror for the right side
+    x0 = motor_x + 15;                                      // ear rear edge, 15 mm in front of the shaft
+    y_out = motor_y;                                        // outboard face of the gearbox sits here
     mirror([0, side < 0 ? 1 : 0, 0])
     difference() {
         union() {
-            // two ears
-            for (y = [y_out - ear_t, y_out - mount_w])
-                translate([x0, y, plate_z - ear_h]) cube([ear_len, ear_t, ear_h + 0.01]);
-            // saddle: solid across both ears, from the plate down to just above the gearbox
-            translate([x0, y_out - mount_w, plate_z - saddle_h]) cube([ear_len, mount_w, saddle_h + 0.01]);
-            // NO gussets in the ear planes. Behind the ears sit the motor's O4 pegs (8..12 mm from the
-            // shaft); in front of them the motor can, which is slightly wider than the gearbox. Anything
-            // in those planes beyond the ears collides. The 7.5 mm saddle is the structural tie.
-            // inner ear: two fins on its inboard face (away from the pocket), at its front and rear edges,
-            // clear of the bolt holes so the nuts seat flat
+            // the ear: inboard of the gearbox
+            translate([x0, y_out - tt_thk - 1 - ear_t, plate_z - ear_h]) cube([ear_len, ear_t, ear_h + 0.01]);
+            // the block it hangs from: spans the ear and the gearbox top, down to 0.5 mm above the gearbox
+            translate([x0, y_out - block_w, plate_z - block_h]) cube([ear_len, block_w, block_h + 0.01]);
+            // inboard fins at the ear's front and rear edges, clear of the bolts so the nuts... (nuts are
+            // outboard; the fins only stiffen the ear)
             for (xf = [x0, x0 + ear_len - 3])
-                translate([xf, y_out - mount_w, plate_z - ear_h + 6])
+                translate([xf, y_out - block_w, plate_z - ear_h + 6])
                     hull() {
                         cube([3, 0.01, ear_h - 6]);
                         translate([0, -6, ear_h - 6 - 0.01]) cube([3, 6, 0.01]);
                     }
         }
-        // two M3 SLOTS through both ears, one above the other, centred on the shaft height,
-        // elongated along the motor so a 2 mm error in the hole position doesn't matter
+        // two M3 holes through the ear, one above the other, centred on the shaft height
         for (dz = [-tt_hole_sep / 2, tt_hole_sep / 2])
             hull() for (dx = [-tt_hole_slot / 2, tt_hole_slot / 2])
-                translate([motor_x + tt_hole_x + dx, y_out - mount_w - 1, wheel_r + dz])
-                    rotate([-90, 0, 0]) cylinder(d = hole_m3, h = mount_w + 2);
-        // lead-in chamfer on the pocket at the ears' open (lower) end
-        for (y = [y_out - ear_t, y_out - mount_w + ear_t])
-            translate([x0 - 1, y, plate_z - ear_h - 0.01])
-                rotate([45, 0, 0]) cube([ear_len + 2, 1.4, 1.4], center = false);
-        // keep the pocket open: the saddle must not reach below the plate between the ears
-        // except as the saddle itself (nothing to cut); the gearbox clears it by 0.5 mm.
+                translate([motor_x + tt_hole_x + dx, y_out - block_w - 8, wheel_r + dz])
+                    rotate([-90, 0, 0]) cylinder(d = hole_m3, h = block_w + 10);
     }
 }
 
 // A ghost of the motor so the preview shows where it sits. Not exported.
 module motor_ghost(side) {
     %translate([motor_x - tt_end_to_shaft, 0, wheel_r])
-        translate([0, side * (motor_y - ear_t - tt_thk / 2 - clr / 2), 0])
+        translate([0, side * (motor_y - tt_thk / 2), 0])
             rotate([0, 0, 0])
                 translate([0, -tt_thk / 2, -tt_w / 2]) cube([tt_len, tt_thk, tt_w]);
-    %translate([motor_x, side * (motor_y + 1 + wheel_w / 2), wheel_r]) rotate([90, 0, 0])
+    %translate([motor_x, side * (motor_y + 2 + wheel_w / 2), wheel_r]) rotate([90, 0, 0])
         cylinder(d = wheel_d, h = wheel_w, center = true);
 }
 
