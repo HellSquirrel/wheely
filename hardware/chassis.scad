@@ -97,7 +97,7 @@ module rounded_plate(l, w, t, r) {
 // joined at the top by a solid saddle that fills the gap between gearbox and plate, so the
 // ears hang from a 24 x 25 mm block instead of a 3 mm edge. Gussets run along X (front and
 // back of each ear) where there is always plate above them.
-ear_len   = 20;      // ears span tt_hole_x - 6.5 .. + 13.5 from the shaft: pegs at 11.25 stay clear
+ear_len   = 18;      // ears span 15..33 mm from the shaft: pegs (to ~12) behind, can (from ~36) in front
 ear_h     = plate_z - (wheel_r - tt_hole_sep / 2 - 5);   // reach 5 mm below the lower hole
 saddle_h  = plate_z - (wheel_r + tt_w / 2) - 0.5;         // down to 0.5 mm above the gearbox
 gusset_l  = 8;                                              // how far the gussets reach along X
@@ -116,14 +116,9 @@ module motor_mount(side) {   // side = +1 left, -1 right
                 translate([x0, y, plate_z - ear_h]) cube([ear_len, ear_t, ear_h + 0.01]);
             // saddle: solid across both ears, from the plate down to just above the gearbox
             translate([x0, y_out - mount_w, plate_z - saddle_h]) cube([ear_len, mount_w, saddle_h + 0.01]);
-            // FRONT gussets only (towards the motor can, where the gearbox face is plain). Nothing may
-            // exist behind the ears' rear edge: the motor's O4 pegs live there, 8..12 mm from the shaft.
-            for (y = [y_out - ear_t, y_out - mount_w])
-                translate([x0 + ear_len, y, plate_z - ear_h + 6])
-                    hull() {
-                        cube([0.01, ear_t, ear_h - 6]);
-                        translate([0, 0, ear_h - 6 - 0.01]) cube([gusset_l, ear_t, 0.01]);
-                    }
+            // NO gussets in the ear planes. Behind the ears sit the motor's O4 pegs (8..12 mm from the
+            // shaft); in front of them the motor can, which is slightly wider than the gearbox. Anything
+            // in those planes beyond the ears collides. The 7.5 mm saddle is the structural tie.
             // inner ear: two fins on its inboard face (away from the pocket), at its front and rear edges,
             // clear of the bolt holes so the nuts seat flat
             for (xf = [x0, x0 + ear_len - 3])
