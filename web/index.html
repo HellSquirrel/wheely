@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#14161a">
+  <meta name="description" content="Drive the wheely robot over Bluetooth from the browser.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wheely">
+  <title>Wheely</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>wheely</h1>
+    <div class="conn">
+      <span id="dot" class="dot"></span>
+      <span id="state">not connected</span>
+    </div>
+    <button id="connect" class="primary">Connect</button>
+  </header>
+
+  <main>
+    <p id="unsupported" class="notice" hidden></p>
+
+    <section class="pad" aria-label="direction pad">
+      <button class="dir up"    data-btn="5" aria-label="forward">&#9650;</button>
+      <button class="dir left"  data-btn="7" aria-label="left">&#9664;</button>
+      <button class="stop"      id="stop"    aria-label="stop">STOP</button>
+      <button class="dir right" data-btn="8" aria-label="right">&#9654;</button>
+      <button class="dir down"  data-btn="6" aria-label="reverse">&#9660;</button>
+    </section>
+
+    <section class="speeds" aria-label="speed">
+      <button data-speed="1">1<small>slow</small></button>
+      <button data-speed="2" class="active">2<small>cruise</small></button>
+      <button data-speed="3">3<small>fast</small></button>
+      <button data-speed="4">4<small>full</small></button>
+    </section>
+
+    <section class="telemetry">
+      <div id="sonar" class="sonar">
+        <span id="distance">&mdash;</span>
+        <span id="blocked" class="badge" hidden>BLOCKED</span>
+      </div>
+      <div id="status" class="status">Press Connect, then pick "wheely".</div>
+    </section>
+  </main>
+
+  <footer>
+    <button id="install" hidden>Install as app</button>
+    <details>
+      <summary>Dev</summary>
+      <p>Keyboard: arrows or WASD to drive, space to stop, 1&ndash;4 for speed.</p>
+      <button id="boot" class="danger">Reboot wheely into BOOTSEL</button>
+      <pre id="log" class="log"></pre>
+    </details>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

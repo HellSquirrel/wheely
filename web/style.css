@@ -1,0 +1,130 @@
+:root {
+  --bg: #14161a;
+  --panel: #1f2329;
+  --panel-2: #2a3038;
+  --text: #e8ebef;
+  --muted: #8b949e;
+  --accent: #3ddc84;
+  --accent-ink: #0b2a18;
+  --warn: #ffb347;
+  --danger: #ff5c5c;
+  --radius: 18px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+h1 { font-size: 22px; margin: 0; letter-spacing: 0.02em; }
+.conn { flex: 1; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.dot.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.dot.busy { background: var(--warn); }
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 0;
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  cursor: pointer;
+  touch-action: none;
+}
+button:active, button.pressed { background: var(--panel-2); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+button.danger { background: var(--danger); color: #2a0000; font-weight: 600; }
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 8px 16px 16px;
+}
+.notice {
+  background: var(--panel);
+  border-left: 4px solid var(--warn);
+  padding: 12px 14px;
+  border-radius: 8px;
+  max-width: 420px;
+  margin: 0;
+}
+
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  grid-template-areas:
+    ".    up    ."
+    "left stop  right"
+    ".    down  .";
+  gap: 10px;
+  width: min(84vw, 360px, 48dvh);
+  aspect-ratio: 1;
+}
+.pad button { font-size: 36px; border-radius: 22px; }
+.pad .up { grid-area: up; }
+.pad .down { grid-area: down; }
+.pad .left { grid-area: left; }
+.pad .right { grid-area: right; }
+.pad .stop { grid-area: stop; font-size: 18px; font-weight: 700; background: var(--panel-2); }
+.pad .dir.pressed { background: var(--accent); color: var(--accent-ink); }
+.pad .dir.blocked { outline: 3px solid var(--danger); outline-offset: -3px; }
+
+.speeds { display: flex; gap: 10px; width: min(84vw, 360px); }
+.speeds button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  font-weight: 700;
+}
+.speeds button small { font-weight: 400; color: var(--muted); font-size: 11px; }
+.speeds button.active { background: var(--panel-2); box-shadow: inset 0 0 0 2px var(--accent); }
+
+.telemetry { text-align: center; min-height: 64px; }
+.sonar { font-size: 28px; font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.badge { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--danger); color: #2a0000; }
+.status { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+footer { padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+footer details { color: var(--muted); font-size: 14px; }
+footer summary { cursor: pointer; }
+footer details p { margin: 8px 0; }
+.log {
+  margin: 8px 0 0;
+  max-height: 140px;
+  overflow: auto;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #0d0f12;
+  padding: 8px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f4f6; --panel: #ffffff; --panel-2: #e2e5ea; --text: #15181d; --muted: #5b6470;
+  }
+}
