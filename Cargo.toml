@@ -11,8 +11,18 @@ default-run = "sonar"
 embassy-executor = { version = "0.10.0", features = ["defmt"] }
 embassy-time = { version = "0.5.1", features = ["defmt", "defmt-timestamp-uptime"] }
 embassy-sync = { version = "0.8.0", features = ["defmt"] }   # Signal between sonar and drive tasks
+embassy-futures = "0.1"
+
+# Bluetooth (Pico 2 W's CYW43439 radio) via TrouBLE. The released cyw43 0.7.0 and trouble-host 0.8.0
+# disagree on the HCI crate version, so every embassy crate is patched to the git revision that
+# TrouBLE's own Pico 2 W example pins (see [patch.crates-io] below).
+cyw43 = { version = "0.7", features = ["defmt", "firmware-logs", "bluetooth"] }
+cyw43-pio = { version = "0.10", features = ["defmt"] }
+trouble-host = { version = "0.8", default-features = false, features = ["derive", "gatt", "peripheral", "default-packet-pool", "default-packet-pool-mtu-128", "defmt"] }
+static_cell = "2"
 embassy-rp = { version = "0.10.0", features = [
     "defmt",
+    "unstable-pac",
     "time-driver",          # embassy-time backed by the RP2350 timer, 1 MHz ticks
     "critical-section-impl",
     "rp235xa",              # RP2350A = the QFN-60 part on the Pico 2 / Pico 2 W
@@ -37,3 +47,12 @@ cortex-m-rt = "0.7.6"
 [profile.release]
 # Keep symbols so probe-rs can still show defmt locations and backtraces.
 debug = true
+
+[patch.crates-io]
+embassy-rp         = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
+embassy-executor   = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
+embassy-time       = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
+embassy-sync       = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
+embassy-usb-logger = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
+cyw43              = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
+cyw43-pio          = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }

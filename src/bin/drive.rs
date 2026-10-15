@@ -3,7 +3,7 @@
 //!
 //! Wiring, in addition to the sonar on GP16/GP17:
 //!   DRV8833 AIN1/AIN2 -> GP0/GP1   motor A (left)
-//!   DRV8833 BIN1/BIN2 -> GP2/GP3   motor B (right)   (harmless if not yet wired)
+//!   DRV8833 BIN1/BIN2 -> GP2/GP3   motor B (right)
 //!   DRV8833 SLP -> 3V3, VM -> battery +, GND -> common ground.
 //!
 //! Safety behaviour: the motors coast whenever the sensor reports a fault
