@@ -63,7 +63,7 @@ is soldered to the main board: each cable ends in a plug, the main board carries
 | 1 | Silicone wire, 22 AWG red + black, 2 m each | Battery and motor power |
 | 1 | Silicone wire, 26 AWG, 5 colours | Signals |
 | 1 | Heat-shrink assortment | |
-| 1 | M2 + M2.5 nylon standoff and screw kit | Pico holes take M2; Perma-Proto holes take M2.5. M3 you have |
+| 0 | (M2 / M2.5 hardware) | Not bought (decided 2026-10-16): boards are held by the printed chassis (tray with rails, pocket for the charger), the Pico by its header socket. M3 for everything mechanical |
 | 1 | Small zip ties / cable clips | |
 
 ## Test rig: breadboard v2 before soldering

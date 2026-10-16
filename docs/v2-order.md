@@ -2,6 +2,7 @@
 
 Option B power (1S LiPo + LiPo Amigo Pro), breadboard first, soldered build after.
 Not needed again: Perma-Proto 3-pack, capacitor kit, 1N5819 diodes, M3 hardware, jumper wires, meter, soldering kit.
+Boards are not screwed down: the printed chassis holds the Perma-Proto in a tray with edge rails and the charger in a pocket; the Pico sits in its header socket. M3 only, for the mechanical parts.
 
 ## The Pi Hut / Pimoroni
 
@@ -13,7 +14,6 @@ Not needed again: Perma-Proto 3-pack, capacitor kit, 1N5819 diodes, M3 hardware,
 - [ ] 1 × Full-size breadboard, 830 tie points
 - [ ] 1 × 40-pin female header 2.54 mm (cut into 2 × 20 for the Pico socket)
 - [ ] 2 × 40-pin male header strip 2.54 mm (driver breakout, Amigo Pro switch pads)
-- [ ] 1 × M2 + M2.5 nylon standoff and screw kit
 
 ## Amazon UK
 
