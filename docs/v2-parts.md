@@ -10,7 +10,7 @@ Already owned, no need to rebuy: Adafruit Perma-Proto half-size (3-pack), capaci
 
 | Qty | Part | Notes |
 |---|---|---|
-| 1 | Raspberry Pi Pico 2 W (no headers) | Solder male headers and seat it in female headers on the Perma-Proto, so it can be swapped. Pi Hut / Pimoroni |
+| 1 | Raspberry Pi Pico 2 WH (headers pre-soldered) | Plugs into the breadboard for testing, later into female headers on the Perma-Proto, so it stays swappable. Pi Hut / Pimoroni |
 | 2 | 20-pin female header strips (2.54 mm) | Pico socket on the Perma-Proto |
 | 1 | Adafruit DRV8833 breakout | Same driver as v1: works down to 2.7 V, which matters for the LiPo option |
 | 1 | RCWL-1601 ultrasonic sensor | 3.3 V native, same as v1. Print the modified hinged case again |
@@ -18,7 +18,7 @@ Already owned, no need to rebuy: Adafruit Perma-Proto half-size (3-pack), capaci
 | 2 | 65 mm wheels for TT motors | In the kit |
 | 1 | 1" swivel caster | In the kit, or same as v1 |
 
-## Power: pick one
+## Power: Option B chosen (2026-10-16)
 
 **Option B, recommended: rechargeable 1S LiPo, USB-C charging, no 3.3 V regulator.**
 VSYS accepts 1.8–5.5 V, so a single cell (3.0–4.2 V) feeds the Pico directly through a Schottky.
@@ -32,7 +32,7 @@ The motors run from the same cell: at 3.7 V they match what v1 does at speed 500
 | 1 | 470 µF 10 V capacitor | Across VM at the driver. Kit may have it |
 | (1) | 6 V step-up regulator, 2 A or more, e.g. Pololu U3V40F6 (check the rating) | Only if the motors turn out weak on carpet at battery voltage |
 
-**Option A, proven: 4×AA + regulator, as v1.**
+**Option A, not chosen, kept for reference: 4×AA + regulator, as v1.**
 
 | Qty | Part | Notes |
 |---|---|---|
@@ -59,6 +59,22 @@ The motors run from the same cell: at 3.7 V they match what v1 does at speed 500
 | 1 | Heat-shrink assortment | |
 | 1 | M2 + M2.5 nylon standoff and screw kit | Pico holes take M2; Perma-Proto holes take M2.5. M3 you have |
 | 1 | Small zip ties / cable clips | |
+
+## Test rig: breadboard v2 before soldering
+
+v1 keeps its breadboard, so v2 needs its own. Everything above gets wired on it first; the Perma-Proto
+layout is copied from the working breadboard.
+
+| Qty | Part | Notes |
+|---|---|---|
+| 1 | Full-size breadboard (830 tie points) | Same as v1's. Half-size gets cramped with the driver, the Pico and the charger |
+| 1 | Jumper wire kit (M/M, M/F) | The v1 pack may be enough; a second one is cheap |
+| 2 | JST-PH 2-pin pigtails, male-end bare or Dupont | To get the Amigo Pro's battery/device connectors onto the breadboard. Usually in the JST kit |
+| 1 | 2.54 mm male header strip | For the DRV8833 breakout (loose headers, as v1) and the Amigo Pro's SW pads |
+
+Breadboard tests that decide the final build: motor strength on carpet at cell voltage (decides the
+6 V step-up), the Pico running from the cell through the Schottky with USB plugged and unplugged,
+power button on/off through the Amigo Pro's SW pads, and reset via RUN.
 
 ## Looks and the next milestone (optional)
 
