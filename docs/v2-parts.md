@@ -51,9 +51,15 @@ The motors run from the same cell: at 3.7 V they match what v1 does at speed 500
 
 ## Connectors, wire, mounting
 
+v1's switch is soldered to a spare driver-board header and a capacitor leg. In v2 nothing off-board
+is soldered to the main board: each cable ends in a plug, the main board carries the sockets.
+
+
 | Qty | Part | Notes |
 |---|---|---|
-| 1 | JST-PH 2.0 mm pre-crimped cable kit with board headers (2-, 3-, 4-pin) | Motors (2-pin) and sonar (4-pin) unplug for service. No crimping tool needed |
+| 1 | JST-XH 2.54 mm connector kit: through-hole board headers + pre-crimped leads, 2/3/4-pin | XH pins match the Perma-Proto's 0.1" grid, so every off-board part gets a proper socket: motors (2-pin each), sonar (4-pin), power button + its LED (4-pin), reset button (2-pin). No crimp tool needed |
+| 2 | JST-PH 2.0 mm 2-pin pigtails | Only for the Amigo Pro's battery and device ports (those are PH, not XH) |
+| 1 | 2.54 mm male header strip + a few female-female Dupont leads | Amigo Pro SW pads get a 2-pin male header; a Dupont lead runs from there to the power button's XH socket on the Perma-Proto |
 | 1 | Silicone wire, 22 AWG red + black, 2 m each | Battery and motor power |
 | 1 | Silicone wire, 26 AWG, 5 colours | Signals |
 | 1 | Heat-shrink assortment | |
@@ -70,7 +76,7 @@ layout is copied from the working breadboard.
 | 1 | Full-size breadboard (830 tie points) | Same as v1's. Half-size gets cramped with the driver, the Pico and the charger |
 | 1 | Jumper wire kit (M/M, M/F) | The v1 pack may be enough; a second one is cheap |
 | 2 | JST-PH 2-pin pigtails, male-end bare or Dupont | To get the Amigo Pro's battery/device connectors onto the breadboard. Usually in the JST kit |
-| 1 | 2.54 mm male header strip | For the DRV8833 breakout (loose headers, as v1) and the Amigo Pro's SW pads |
+| 1 | 2.54 mm male header strip | For the DRV8833 breakout (loose headers, as v1); the rest of the strip serves the Amigo Pro SW pads |
 
 Breadboard tests that decide the final build: motor strength on carpet at cell voltage (decides the
 6 V step-up), the Pico running from the cell through the Schottky with USB plugged and unplugged,
