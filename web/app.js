@@ -9,7 +9,7 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   connect: $('connect'), dot: $('dot'), state: $('state'), status: $('status'),
   distance: $('distance'), blocked: $('blocked'), log: $('log'), install: $('install'),
-  boot: $('boot'), stop: $('stop'), unsupported: $('unsupported'),
+  boot: $('boot'), stop: $('stop'), unsupported: $('unsupported'), cruise: $('cruise'),
   dirs: [...document.querySelectorAll('.pad .dir')],
   speeds: [...document.querySelectorAll('.speeds button')],
 };
@@ -18,6 +18,7 @@ let device = null, rx = null, tx = null;
 let queue = Promise.resolve();   // GATT allows one operation at a time
 let held = null;                 // button code currently held ('5'..'8')
 let lastSpeed = '2';
+let cruising = false;
 
 function log(msg) {
   const t = new Date().toLocaleTimeString([], { hour12: false });
@@ -30,7 +31,8 @@ function setState(kind, text) {
   ui.state.textContent = text;
   const connected = kind === 'on';
   ui.connect.textContent = connected ? 'Disconnect' : (device ? 'Reconnect' : 'Connect');
-  for (const b of [...ui.dirs, ...ui.speeds, ui.stop, ui.boot]) b.disabled = !connected;
+  for (const b of [...ui.dirs, ...ui.speeds, ui.stop, ui.boot, ui.cruise]) b.disabled = !connected;
+  if (!connected) setCruising(false);
 }
 
 // ---------------------------------------------------------------- protocol
@@ -54,6 +56,7 @@ function send(bytes) {
 
 function press(button) {
   if (held === button) return;
+  if (cruising) setCruising(false);
   if (held) release(held);
   held = button;
   ui.dirs.find((b) => b.dataset.btn === button)?.classList.add('pressed');
@@ -72,6 +75,17 @@ function stopAll() {
   send(enc.encode('s'));
 }
 
+function setCruising(on) {
+  cruising = on;
+  ui.cruise.classList.toggle('active', on);
+  ui.cruise.textContent = on ? 'Cruising… tap to stop' : 'Cruise';
+}
+
+function toggleCruise() {
+  if (cruising) { stopAll(); setCruising(false); }
+  else { if (held) release(held); send(enc.encode('c')); setCruising(true); }
+}
+
 function setSpeed(n) {
   lastSpeed = n;
   ui.speeds.forEach((b) => b.classList.toggle('active', b.dataset.speed === n));
@@ -86,6 +100,7 @@ function onNotify(ev) {
   const line = dec.decode(ev.target.value).trim(); // e.g. "Forward 523mm !"
   if (!line) return;
   const blocked = line.endsWith('!');
+  setCruising(line.startsWith('Cruise'));
   const m = line.match(/(\d+)mm/);
   ui.distance.textContent = m ? `${(m[1] / 10).toFixed(0)} cm` : line.replace(/^\S+\s*/, '') || '—';
   ui.blocked.hidden = !blocked;
@@ -141,7 +156,8 @@ function disconnect() {
 // ---------------------------------------------------------------- UI wiring
 
 ui.connect.addEventListener('click', () => (device?.gatt.connected ? disconnect() : connect()));
-ui.stop.addEventListener('click', stopAll);
+ui.stop.addEventListener('click', () => { stopAll(); setCruising(false); });
+ui.cruise.addEventListener('click', toggleCruise);
 ui.boot.addEventListener('click', () => { log('sent boot'); send(enc.encode('boot\n')); });
 ui.speeds.forEach((b) => b.addEventListener('click', () => setSpeed(b.dataset.speed)));
 
@@ -160,7 +176,8 @@ const KEYS = {
 document.addEventListener('keydown', (ev) => {
   if (ev.repeat || ev.target.tagName === 'INPUT') return;
   if (KEYS[ev.code]) { ev.preventDefault(); press(KEYS[ev.code]); }
-  else if (ev.code === 'Space') { ev.preventDefault(); stopAll(); }
+  else if (ev.code === 'Space') { ev.preventDefault(); stopAll(); setCruising(false); }
+  else if (ev.code === 'KeyC') toggleCruise();
   else if (/^Digit[1-4]$/.test(ev.code)) setSpeed(ev.code.slice(-1));
 });
 document.addEventListener('keyup', (ev) => { if (KEYS[ev.code]) release(KEYS[ev.code]); });

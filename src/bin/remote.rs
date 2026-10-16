@@ -1,40 +1,51 @@
-//! Wheely remote: drive from a phone over Bluetooth LE.
+//! Wheely remote: drive from a phone or browser over Bluetooth LE, cruise on its own around
+//! obstacles, and stream telemetry over Wi-Fi for logging and mapping.
 //!
-//! Advertises as "wheely" with the Nordic UART Service. Two ways to talk to it:
+//! Advertises as "wheely" with the Nordic UART Service. Ways to talk to it:
 //!
-//!   * Adafruit "Bluefruit Connect" app, Controller -> Control Pad.
+//!   * Adafruit "Bluefruit Connect" app, Controller -> Control Pad, or the PWA in `web/`.
 //!     Arrows: up = forward, down = reverse, left/right = spin on the spot. Hold to move,
 //!     release to stop. Buttons 1-4 pick the speed (slow .. full).
 //!   * Any BLE UART terminal (Bluefruit's UART screen included), one letter per command:
-//!     f b l r s = forward, back, left, right, stop; 1-4 = speed; the word "boot" reboots the
-//!     Pico into BOOTSEL so it can be flashed without touching the button (handy on battery,
-//!     where unplugging USB no longer resets it).
+//!     f b l r s = forward, back, left, right, stop; 1-4 = speed; c = cruise (obstacle
+//!     avoidance, see `wheely::cruise`; any arrow or s cancels it); the word "boot" reboots
+//!     the Pico into BOOTSEL so it can be flashed without touching the button.
 //!
-//! Once a second wheely sends a status line back ("Forward 523mm", "!" appended when the
-//! sonar is blocking forward motion). The UART screen shows it.
+//! Once a second wheely sends a status line back over BLE ("Forward 523mm", "!" appended when
+//! the sonar is blocking forward motion; "Cruise/turning 180mm" while cruising).
+//!
+//! Wi-Fi: with credentials in `wifi.secrets` (see wifi.secrets.example) the robot joins the
+//! network and broadcasts one JSON sample per 100 ms on UDP port TELEMETRY_PORT (default 4210):
+//! uptime, sonar reading, gate state, command, cruise phase and the two wheel speeds. On the
+//! laptop, `tools/telemetry.py` logs them to CSV and `tools/map.py` dead-reckons a map.
+//! Without credentials the firmware builds and runs with Wi-Fi off.
 //!
 //! Safety rules, in order of precedence:
-//!   1. Phone disconnected (or never connected): motors coast.
-//!   2. A movement held longer than MAX_HOLD stops by itself; press again.
+//!   1. Phone disconnected (or never connected): motors coast, cruise cancelled.
+//!   2. A movement held longer than MAX_HOLD stops by itself; press again. (Not cruise.)
 //!   3. Sonar closer than STOP_MM (or sonar faulty/silent): forward is refused, reverse and
 //!      turns still work so you can back out. Forward resumes after CLEAR_CONFIRM consecutive
-//!      readings above GO_MM.
+//!      readings above GO_MM. In cruise a faulty/silent sonar cancels cruise.
 //!
 //! Wiring as for `drive`: motor A (left) on GP0/GP1, motor B (right) on GP2/GP3, sonar on GP16/GP17.
-//! Flash: hold BOOTSEL while plugging in, then `cargo run --release --bin remote`.
+//! Flash: send "boot" (or hold BOOTSEL while plugging in), then `cargo run --release --bin remote`.
 
 #![no_std]
 #![no_main]
 
 use core::cell::Cell;
 use core::fmt::Write as _;
+use core::sync::atomic::{AtomicBool, Ordering};
 
-use cyw43::aligned_bytes;
+use cyw43::{JoinAuth, JoinOptions, aligned_bytes};
 use cyw43_pio::{PioSpi, RM2_CLOCK_DIVIDER};
 use defmt::*;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_futures::select::select;
+use embassy_net::udp::{PacketMetadata, UdpSocket};
+use embassy_net::{IpAddress, IpEndpoint, StackResources};
+use embassy_rp::clocks::RoscRng;
 use embassy_rp::gpio::{Input, Level, Output, Pull};
 use embassy_rp::peripherals::{DMA_CH0, DMA_CH1, PIO0, USB};
 use embassy_rp::pio::{InterruptHandler as PioInterruptHandler, Pio};
@@ -47,8 +58,10 @@ use embassy_time::{Duration, Instant, Timer};
 use panic_probe as _;
 use static_cell::StaticCell;
 use trouble_host::prelude::*;
+use wheely::cruise::{Cruise, Phase};
 use wheely::motor::{Motor, Speed, pwm_config};
 use wheely::sonar::{PING_INTERVAL, SonarError, measure};
+use wheely::text::Buf;
 
 bind_interrupts!(struct Irqs {
     USBCTRL_IRQ => UsbInterruptHandler<USB>;
@@ -60,7 +73,7 @@ bind_interrupts!(struct Irqs {
 #[used]
 pub static PICOTOOL_ENTRIES: [embassy_rp::binary_info::EntryAddr; 4] = [
     embassy_rp::binary_info::rp_program_name!(c"wheely-remote"),
-    embassy_rp::binary_info::rp_program_description!(c"phone remote over BLE, sonar guarded"),
+    embassy_rp::binary_info::rp_program_description!(c"BLE remote + cruise + Wi-Fi telemetry"),
     embassy_rp::binary_info::rp_cargo_version!(),
     embassy_rp::binary_info::rp_program_build_attribute!(),
 ];
@@ -77,8 +90,8 @@ const SENSOR_TIMEOUT: Duration = Duration::from_millis(500);
 /// blocks at once. A close, angled object returns the odd missed echo, which otherwise
 /// reads as "nothing ahead" and lets the motors twitch (seen on the bench 2026-10-15).
 const CLEAR_CONFIRM: u8 = 3;
-/// A movement command older than this is dropped. Guards against a phone that
-/// died mid-press: the link itself can take several seconds to be declared dead.
+/// A held movement older than this is dropped. Guards against a phone that died mid-press:
+/// the link itself can take several seconds to be declared dead.
 const MAX_HOLD: Duration = Duration::from_secs(5);
 /// How often the control loop re-evaluates motors.
 const CONTROL_PERIOD: Duration = Duration::from_millis(50);
@@ -88,6 +101,14 @@ const DEFAULT_SPEED: Speed = 500;
 /// Flip to -1 if a motor turns the wrong way.
 const LEFT_SIGN: Speed = 1;
 const RIGHT_SIGN: Speed = 1;
+/// Telemetry cadence over Wi-Fi.
+const TELEMETRY_PERIOD: Duration = Duration::from_millis(100);
+
+// Baked in by build.rs from wifi.secrets (empty when the file is missing).
+const WIFI_SSID: &str = env!("WIFI_SSID");
+const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
+const TELEMETRY_PORT: &str = env!("TELEMETRY_PORT");
+const TELEMETRY_HOST: &str = env!("TELEMETRY_HOST");
 
 // ---------------------------------------------------------------- shared state
 
@@ -98,6 +119,7 @@ enum Cmd {
     Reverse,
     Left,
     Right,
+    Cruise,
 }
 
 #[derive(Clone, Copy)]
@@ -119,8 +141,47 @@ static COMMAND: Mutex<CriticalSectionRawMutex, Cell<Command>> = Mutex::new(Cell:
 static SONAR: Mutex<CriticalSectionRawMutex, Cell<Option<(Result<u32, SonarError>, Instant)>>> =
     Mutex::new(Cell::new(None));
 
-/// What the control loop is actually doing: effective command, sonar-blocked flag.
-static STATUS: Mutex<CriticalSectionRawMutex, Cell<(Cmd, bool)>> = Mutex::new(Cell::new((Cmd::Stop, false)));
+#[derive(Clone, Copy)]
+enum SonarState {
+    Mm(u32),
+    Err(SonarError),
+    Silent,
+}
+
+/// One control-loop tick, as seen by telemetry (Wi-Fi JSON and the BLE status line).
+#[derive(Clone, Copy)]
+struct Sample {
+    seq: u32,
+    t_ms: u64,
+    sonar: SonarState,
+    blocked: bool,
+    /// What the phone asked for.
+    cmd: Cmd,
+    /// What we are doing about it (Stop when forward is refused).
+    effective: Cmd,
+    phase: Option<Phase>,
+    speed: Speed,
+    left: Speed,
+    right: Speed,
+}
+
+impl Sample {
+    const EMPTY: Sample = Sample {
+        seq: 0,
+        t_ms: 0,
+        sonar: SonarState::Silent,
+        blocked: true,
+        cmd: Cmd::Stop,
+        effective: Cmd::Stop,
+        phase: None,
+        speed: DEFAULT_SPEED,
+        left: 0,
+        right: 0,
+    };
+}
+
+static TELEMETRY: Mutex<CriticalSectionRawMutex, Cell<Sample>> = Mutex::new(Cell::new(Sample::EMPTY));
+static BLE_UP: AtomicBool = AtomicBool::new(false);
 
 fn command() -> Command {
     COMMAND.lock(|c| c.get())
@@ -211,6 +272,7 @@ fn handle_rx(data: &[u8]) {
             b'l' => set_command(Cmd::Left),
             b'r' => set_command(Cmd::Right),
             b's' => set_command(Cmd::Stop),
+            b'c' => set_command(Cmd::Cruise),
             b'1'..=b'4' => set_speed(PRESETS[(b - b'1') as usize]),
             b'\r' | b'\n' | b' ' => {}
             other => log::info!("ignored byte 0x{:02x}", other),
@@ -233,6 +295,11 @@ async fn cyw43_task(
 }
 
 #[embassy_executor::task]
+async fn net_task(mut runner: embassy_net::Runner<'static, cyw43::NetDriver<'static>>) -> ! {
+    runner.run().await
+}
+
+#[embassy_executor::task]
 async fn sonar_task(mut trig: Output<'static>, mut echo: Input<'static>) {
     loop {
         let r = measure(&mut trig, &mut echo).await;
@@ -248,6 +315,9 @@ async fn control_task(mut left: Motor<'static>, mut right: Motor<'static>) {
     let mut clear_streak: u8 = 0;
     let mut last_seen: Option<Instant> = None;
     let mut applied: (Speed, Speed) = (0, 0);
+    let mut cruise: Option<Cruise> = None;
+    let mut last_phase: Option<Phase> = None;
+    let mut seq: u32 = 0;
     let mut last_report = Instant::now();
     loop {
         Timer::after(CONTROL_PERIOD).await;
@@ -270,9 +340,9 @@ async fn control_task(mut left: Motor<'static>, mut right: Motor<'static>) {
                 let clear = match r {
                     Ok(mm) if mm < STOP_MM => Some(false),
                     Ok(mm) if mm > GO_MM => Some(true),
-                    Ok(_) => None,                        // hysteresis band: no opinion
+                    Ok(_) => None,                             // hysteresis band: no opinion
                     Err(SonarError::OutOfRange) => Some(true), // nothing ahead
-                    Err(_) => Some(false),                // faulty: don't go forward blind
+                    Err(_) => Some(false),                     // faulty: don't go forward blind
                 };
                 match clear {
                     Some(false) => {
@@ -292,25 +362,51 @@ async fn control_task(mut left: Motor<'static>, mut right: Motor<'static>) {
         if blocked != was_blocked {
             log::info!("sonar {} ({:?})", if blocked { "BLOCKED" } else { "clear" }, fresh.map(|(r, _)| r));
         }
+        let sonar_state = match fresh.map(|(r, _)| r) {
+            Some(Ok(mm)) => SonarState::Mm(mm),
+            Some(Err(e)) => SonarState::Err(e),
+            None => SonarState::Silent,
+        };
+        let sonar_fault = !matches!(sonar_state, SonarState::Mm(_) | SonarState::Err(SonarError::OutOfRange));
 
         let c = command();
         let mut cmd = c.cmd;
-        if cmd != Cmd::Stop && now.saturating_duration_since(c.at) > MAX_HOLD {
+        let held = matches!(cmd, Cmd::Forward | Cmd::Reverse | Cmd::Left | Cmd::Right);
+        if held && now.saturating_duration_since(c.at) > MAX_HOLD {
             log::info!("{:?} held over {} s: auto-stop", cmd, MAX_HOLD.as_secs());
             set_command(Cmd::Stop);
             cmd = Cmd::Stop;
         }
-        let effective = if cmd == Cmd::Forward && blocked { Cmd::Stop } else { cmd };
-        STATUS.lock(|s| s.set((effective, blocked)));
+        if cmd == Cmd::Cruise && sonar_fault {
+            log::warn!("cruise: sonar {}, cancelling", match sonar_state { SonarState::Silent => "silent", _ => "faulty" });
+            set_command(Cmd::Stop);
+            cmd = Cmd::Stop;
+        }
 
         let s = c.speed;
-        let want: (Speed, Speed) = match effective {
-            Cmd::Stop => (0, 0),
-            Cmd::Forward => (s, s),
-            Cmd::Reverse => (-s, -s),
-            Cmd::Left => (-s, s),
-            Cmd::Right => (s, -s),
+        let (want, effective, phase): ((Speed, Speed), Cmd, Option<Phase>) = match cmd {
+            Cmd::Cruise => {
+                let cr = cruise.get_or_insert_with(|| Cruise::new(now));
+                let w = cr.step(now, blocked, s);
+                (w, Cmd::Cruise, Some(cr.phase()))
+            }
+            Cmd::Stop => ((0, 0), Cmd::Stop, None),
+            Cmd::Forward if blocked => ((0, 0), Cmd::Stop, None),
+            Cmd::Forward => ((s, s), Cmd::Forward, None),
+            Cmd::Reverse => ((-s, -s), Cmd::Reverse, None),
+            Cmd::Left => ((-s, s), Cmd::Left, None),
+            Cmd::Right => ((s, -s), Cmd::Right, None),
         };
+        if cmd != Cmd::Cruise {
+            cruise = None;
+        }
+        if phase != last_phase {
+            if let Some(p) = phase {
+                log::info!("cruise: {}", p.name());
+            }
+            last_phase = phase;
+        }
+
         if want != applied {
             applied = want;
             left.set(want.0 * LEFT_SIGN);
@@ -318,12 +414,155 @@ async fn control_task(mut left: Motor<'static>, mut right: Motor<'static>) {
             log::info!("motors L {} R {}", want.0, want.1);
         }
 
+        seq = seq.wrapping_add(1);
+        TELEMETRY.lock(|t| {
+            t.set(Sample {
+                seq,
+                t_ms: now.as_millis(),
+                sonar: sonar_state,
+                blocked,
+                cmd,
+                effective,
+                phase,
+                speed: s,
+                left: want.0,
+                right: want.1,
+            })
+        });
+
         if now.saturating_duration_since(last_report) >= Duration::from_secs(1) {
             last_report = now;
-            match fresh.map(|(r, _)| r) {
-                Some(Ok(mm)) => log::info!("{:?}  {} mm", effective, mm),
-                Some(Err(e)) => log::info!("{:?}  {:?}", effective, e),
-                None => log::info!("{:?}  sonar silent", effective),
+            match sonar_state {
+                SonarState::Mm(mm) => log::info!("{:?}  {} mm", effective, mm),
+                SonarState::Err(e) => log::info!("{:?}  {:?}", effective, e),
+                SonarState::Silent => log::info!("{:?}  sonar silent", effective),
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Wi-Fi telemetry
+
+/// Human-readable status, e.g. "Forward 523mm !" or "Cruise/turning 180mm". Fits one
+/// default-MTU BLE notification (20 bytes) when `N` is 20.
+fn status_line<const N: usize>(s: &Sample, out: &mut Buf<N>) {
+    out.clear();
+    let _ = match s.phase {
+        Some(p) => core::write!(out, "Cruise/{}", p.name()),
+        None => core::write!(out, "{:?}", s.effective),
+    };
+    let _ = match s.sonar {
+        SonarState::Mm(mm) => core::write!(out, " {}mm", mm),
+        SonarState::Err(e) => core::write!(out, " {:?}", e),
+        SonarState::Silent => out.write_str(" no sonar"),
+    };
+    if s.blocked {
+        let _ = out.write_str(" !");
+    }
+}
+
+/// One JSON object per line, consumed by tools/telemetry.py and tools/map.py.
+fn json_line<const N: usize>(s: &Sample, out: &mut Buf<N>) {
+    out.clear();
+    let _ = core::write!(out, "{{\"seq\":{},\"t\":{},", s.seq, s.t_ms);
+    let _ = match s.sonar {
+        SonarState::Mm(mm) => core::write!(out, "\"mm\":{},\"sonar\":\"ok\",", mm),
+        SonarState::Err(e) => core::write!(out, "\"mm\":null,\"sonar\":\"{:?}\",", e),
+        SonarState::Silent => out.write_str("\"mm\":null,\"sonar\":\"silent\","),
+    };
+    let _ = core::write!(
+        out,
+        "\"blocked\":{},\"cmd\":\"{:?}\",\"eff\":\"{:?}\",\"cruise\":\"{}\",\"speed\":{},\"l\":{},\"r\":{},\"ble\":{}}}\n",
+        s.blocked,
+        s.cmd,
+        s.effective,
+        s.phase.map(Phase::name).unwrap_or("off"),
+        s.speed,
+        s.left,
+        s.right,
+        BLE_UP.load(Ordering::Relaxed),
+    );
+}
+
+/// Join the network, then broadcast telemetry. Rejoins if the link drops.
+#[embassy_executor::task]
+async fn wifi_task(mut control: cyw43::Control<'static>, stack: embassy_net::Stack<'static>) {
+    if WIFI_SSID.is_empty() {
+        log::info!("wifi: no credentials in wifi.secrets, telemetry off");
+        return;
+    }
+    let port: u16 = TELEMETRY_PORT.parse().unwrap_or(4210);
+    let dest_ip = match TELEMETRY_HOST.parse::<core::net::Ipv4Addr>() {
+        Ok(ip) => ip,
+        Err(_) => core::net::Ipv4Addr::BROADCAST,
+    };
+    let dest = IpEndpoint::new(IpAddress::Ipv4(dest_ip), port);
+    let mut failures: u32 = 0;
+    loop {
+        // The driver's default (WPA2/WPA3 mixed, SAE first) fails the handshake on some
+        // WPA2-only access points with "AuthenticationFailure". Rotate through the modes.
+        let mut opts = JoinOptions::new(WIFI_PASSWORD.as_bytes());
+        let auth = match failures % 3 {
+            0 => "wpa2+wpa3",
+            1 => {
+                opts.auth = JoinAuth::Wpa2;
+                "wpa2"
+            }
+            _ => {
+                opts.auth = JoinAuth::Wpa3;
+                "wpa3"
+            }
+        };
+        log::info!("wifi: joining {} ({})", WIFI_SSID, auth);
+        if let Err(e) = control.join(WIFI_SSID, opts).await {
+            log::warn!("wifi: join failed ({:?}), retrying in 5 s", e);
+            // Every so often, say what the radio can actually see (2.4 GHz only on this chip).
+            if failures % 6 == 0 {
+                log::info!("wifi: scanning...");
+                let mut scanner = control.scan(Default::default()).await;
+                let mut n = 0;
+                while let Some(bss) = scanner.next().await {
+                    let ssid = core::str::from_utf8(&bss.ssid[..bss.ssid_len as usize]).unwrap_or("<not utf8>");
+                    log::info!("wifi: seen '{}' ch {} rssi {}", ssid, bss.chanspec & 0xff, bss.rssi);
+                    n += 1;
+                }
+                log::info!("wifi: scan done, {} networks", n);
+            }
+            failures += 1;
+            Timer::after_secs(5).await;
+            continue;
+        }
+        log::info!("wifi: joined ({}), waiting for DHCP", auth);
+        stack.wait_config_up().await;
+        if let Some(cfg) = stack.config_v4() {
+            log::info!("wifi: ip {}, telemetry to {}:{} every {} ms", cfg.address, dest_ip, port, TELEMETRY_PERIOD.as_millis());
+        }
+
+        let mut rx_meta = [PacketMetadata::EMPTY; 2];
+        let mut rx_buf = [0u8; 256];
+        let mut tx_meta = [PacketMetadata::EMPTY; 4];
+        let mut tx_buf = [0u8; 1024];
+        let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
+        if let Err(e) = socket.bind(port) {
+            log::error!("wifi: bind {}: {:?}", port, e);
+            return;
+        }
+        let mut line = Buf::<256>::new();
+        let mut last_seq = u32::MAX;
+        loop {
+            Timer::after(TELEMETRY_PERIOD).await;
+            if !stack.is_link_up() {
+                log::warn!("wifi: link down, rejoining");
+                break;
+            }
+            let s = TELEMETRY.lock(|t| t.get());
+            if s.seq == last_seq {
+                continue;
+            }
+            last_seq = s.seq;
+            json_line(&s, &mut line);
+            if let Err(e) = socket.send_to(line.as_bytes(), dest).await {
+                log::warn!("wifi: send: {:?}", e);
             }
         }
     }
@@ -348,31 +587,6 @@ struct NusService {
 }
 
 const NUS_UUID_LE: [u8; 16] = [0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0, 0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x00, 0x40, 0x6e];
-
-/// Fixed 20-byte line buffer (one default-MTU notification) with `fmt::Write`; truncates.
-struct Line {
-    buf: [u8; 20],
-    len: usize,
-}
-
-impl Line {
-    fn new() -> Self {
-        Self { buf: [0; 20], len: 0 }
-    }
-    fn as_bytes(&self) -> &[u8] {
-        &self.buf[..self.len]
-    }
-}
-
-impl core::fmt::Write for Line {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        let b = s.as_bytes();
-        let n = b.len().min(self.buf.len() - self.len);
-        self.buf[self.len..self.len + n].copy_from_slice(&b[..n]);
-        self.len += n;
-        if n < b.len() { Err(core::fmt::Error) } else { Ok(()) }
-    }
-}
 
 /// Serve GATT requests until the phone goes away. Writes to RX become commands.
 async fn gatt_events(conn: &GattConnection<'_, '_, DefaultPacketPool>, rx_handle: u16) {
@@ -399,21 +613,12 @@ async fn gatt_events(conn: &GattConnection<'_, '_, DefaultPacketPool>, rx_handle
 }
 
 /// Once a second, tell the phone what we are doing.
-async fn telemetry(server: &Server<'_>, conn: &GattConnection<'_, '_, DefaultPacketPool>) {
+async fn ble_status(server: &Server<'_>, conn: &GattConnection<'_, '_, DefaultPacketPool>) {
+    let mut line = Buf::<20>::new();
     loop {
         Timer::after_secs(1).await;
-        let (cmd, blocked) = STATUS.lock(|s| s.get());
-        let sonar = SONAR.lock(|s| s.get());
-        let mut line = Line::new();
-        let _ = match sonar {
-            Some((Ok(mm), _)) => core::write!(line, "{:?} {}mm", cmd, mm),
-            Some((Err(e), _)) => core::write!(line, "{:?} {:?}", cmd, e),
-            None => core::write!(line, "{:?} no sonar", cmd),
-        };
-        if blocked {
-            let _ = line.write_str(" !");
-        }
-        let _ = line.write_str("\n");
+        let s = TELEMETRY.lock(|t| t.get());
+        status_line(&s, &mut line);
         // Fails harmlessly if the app hasn't subscribed to TX.
         let _ = server.nus.tx.notify_raw(conn, line.as_bytes(), false).await;
     }
@@ -426,8 +631,8 @@ async fn main(spawner: Spawner) {
     spawner.spawn(unwrap!(logger_task(driver)));
 
     // Motors first, so they are known to be coasting before anything else runs.
+    // Motor A (GP0/GP1) is the LEFT wheel, motor B (GP2/GP3) the right (floor check 2026-10-15).
     let cfg = pwm_config();
-    // Motor A (GP0/GP1) is the LEFT wheel, motor B (GP2/GP3) the right (bench check 2026-10-15).
     let left = Motor::new(Pwm::new_output_ab(p.PWM_SLICE0, p.PIN_0, p.PIN_1, cfg.clone()), cfg.clone());
     let right = Motor::new(Pwm::new_output_ab(p.PWM_SLICE1, p.PIN_2, p.PIN_3, cfg.clone()), cfg);
     spawner.spawn(unwrap!(control_task(left, right)));
@@ -436,7 +641,7 @@ async fn main(spawner: Spawner) {
     let echo = Input::new(p.PIN_17, Pull::Down);
     spawner.spawn(unwrap!(sonar_task(trig, echo)));
 
-    // Radio bring-up, identical to ble_test.
+    // Radio bring-up: Wi-Fi and Bluetooth firmware on the CYW43439.
     let fw = aligned_bytes!("../../firmware/43439A0.bin");
     let clm = aligned_bytes!("../../firmware/43439A0_clm.bin");
     let btfw = aligned_bytes!("../../firmware/43439A0_btfw.bin");
@@ -450,9 +655,18 @@ async fn main(spawner: Spawner) {
     );
     static STATE: StaticCell<cyw43::State> = StaticCell::new();
     let state = STATE.init(cyw43::State::new());
-    let (_net_device, bt_device, mut control, runner) = cyw43::new_with_bluetooth(state, pwr, spi, fw, btfw, nvram).await;
+    let (net_device, bt_device, mut control, runner) = cyw43::new_with_bluetooth(state, pwr, spi, fw, btfw, nvram).await;
     spawner.spawn(unwrap!(cyw43_task(runner)));
     control.init(clm).await;
+    control.set_power_management(cyw43::PowerManagementMode::PowerSave).await;
+
+    // Network stack (DHCP) and the Wi-Fi/telemetry task that owns `control`.
+    let seed = RoscRng.next_u64();
+    static RESOURCES: StaticCell<StackResources<4>> = StaticCell::new();
+    let (stack, net_runner) =
+        embassy_net::new(net_device, embassy_net::Config::dhcpv4(Default::default()), RESOURCES.init(StackResources::new()), seed);
+    spawner.spawn(unwrap!(net_task(net_runner)));
+    spawner.spawn(unwrap!(wifi_task(control, stack)));
 
     Timer::after_millis(1500).await;
     log::info!("wheely-remote: stop < {} mm, go > {} mm, max hold {} s", STOP_MM, GO_MM, MAX_HOLD.as_secs());
@@ -504,9 +718,11 @@ async fn main(spawner: Spawner) {
             };
             let conn = conn.with_attribute_server(&server).unwrap();
             log::info!("phone connected");
+            BLE_UP.store(true, Ordering::Relaxed);
             set_command(Cmd::Stop);
-            select(gatt_events(&conn, rx_handle), telemetry(&server, &conn)).await;
+            select(gatt_events(&conn, rx_handle), ble_status(&server, &conn)).await;
             // Whatever the phone was asking for, it isn't asking any more.
+            BLE_UP.store(false, Ordering::Relaxed);
             set_command(Cmd::Stop);
         }
     };

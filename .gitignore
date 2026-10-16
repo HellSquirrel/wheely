@@ -1,1 +1,6 @@
 /target
+
+# Wi-Fi credentials for the telemetry build (see wifi.secrets.example)
+wifi.secrets
+__pycache__/
+.venv/

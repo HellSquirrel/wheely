@@ -556,9 +556,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "embassy-net"
+version = "0.9.1"
+source = "git+https://github.com/embassy-rs/embassy.git?rev=3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a#3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a"
+dependencies = [
+ "defmt 1.1.1",
+ "document-features",
+ "embassy-futures 0.1.2 (git+https://github.com/embassy-rs/embassy.git?rev=3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a)",
+ "embassy-net-driver",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-io-async 0.7.0",
+ "embedded-nal-async",
+ "heapless 0.9.3",
+ "managed",
+ "xarxa",
+]
+
+[[package]]
 name = "embassy-net-driver"
 version = "0.2.0"
 source = "git+https://github.com/embassy-rs/embassy.git?rev=3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a#3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a"
+dependencies = [
+ "defmt 1.1.1",
+]
 
 [[package]]
 name = "embassy-net-driver-channel"
@@ -765,6 +786,25 @@ checksum = "2564b9f813c544241430e147d8bc454815ef9ac998878d30cc3055449f7fd4c0"
 dependencies = [
  "defmt 1.1.1",
  "embedded-io 0.7.1",
+]
+
+[[package]]
+name = "embedded-nal"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c56a28be191a992f28f178ec338a0bf02f63d7803244add736d026a471e6ed77"
+dependencies = [
+ "nb 1.1.0",
+]
+
+[[package]]
+name = "embedded-nal-async"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb5a1bd585135d302f8f6d7de329310938093da6271b37a6c94b8798795c0c6d"
+dependencies = [
+ "embedded-io-async 0.7.0",
+ "embedded-nal",
 ]
 
 [[package]]
@@ -1111,6 +1151,12 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
 ]
+
+[[package]]
+name = "managed"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
 
 [[package]]
 name = "matchers"
@@ -2040,6 +2086,7 @@ dependencies = [
  "defmt-rtt",
  "embassy-executor",
  "embassy-futures 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-net",
  "embassy-rp",
  "embassy-sync",
  "embassy-time",
@@ -2081,6 +2128,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
 dependencies = [
  "windows-link",
+]
+
+[[package]]
+name = "xarxa"
+version = "0.13.1"
+source = "git+https://github.com/embassy-rs/xarxa?rev=1f332ac32cc33d86aefc8e1c1a9749b93234a6de#1f332ac32cc33d86aefc8e1c1a9749b93234a6de"
+dependencies = [
+ "bitflags 1.3.2",
+ "byteorder",
+ "cfg-if",
+ "defmt 1.1.1",
+ "heapless 0.9.3",
+ "managed",
+ "xarxa-driver",
+]
+
+[[package]]
+name = "xarxa-driver"
+version = "0.1.0"
+source = "git+https://github.com/embassy-rs/xarxa?rev=1f332ac32cc33d86aefc8e1c1a9749b93234a6de#1f332ac32cc33d86aefc8e1c1a9749b93234a6de"
+dependencies = [
+ "defmt 1.1.1",
 ]
 
 [[package]]

@@ -92,6 +92,9 @@ main {
 .pad .dir.pressed { background: var(--accent); color: var(--accent-ink); }
 .pad .dir.blocked { outline: 3px solid var(--danger); outline-offset: -3px; }
 
+.cruise { width: min(84vw, 360px); padding: 14px; font-weight: 700; letter-spacing: 0.04em; }
+.cruise.active { background: var(--accent); color: var(--accent-ink); }
+
 .speeds { display: flex; gap: 10px; width: min(84vw, 360px); }
 .speeds button {
   flex: 1;

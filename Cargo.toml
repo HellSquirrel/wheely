@@ -20,6 +20,8 @@ cyw43 = { version = "0.7", features = ["defmt", "firmware-logs", "bluetooth"] }
 cyw43-pio = { version = "0.10", features = ["defmt"] }
 trouble-host = { version = "0.8", default-features = false, features = ["derive", "gatt", "peripheral", "default-packet-pool", "default-packet-pool-mtu-128", "defmt"] }
 static_cell = "2"
+# Wi-Fi telemetry (milestone 4): UDP broadcast of JSON samples to the laptop.
+embassy-net = { version = "0.9.1", features = ["defmt", "udp", "dhcpv4", "proto-ipv4", "medium-ethernet"] }
 embassy-rp = { version = "0.10.0", features = [
     "defmt",
     "unstable-pac",
@@ -55,4 +57,5 @@ embassy-time       = { git = "https://github.com/embassy-rs/embassy.git", rev = 
 embassy-sync       = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
 embassy-usb-logger = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
 cyw43              = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
+embassy-net        = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
 cyw43-pio          = { git = "https://github.com/embassy-rs/embassy.git", rev = "3cd51e6d8eb6aff8b0d64d9e56a75a538bcfc65a" }
