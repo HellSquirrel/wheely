@@ -4,3 +4,7 @@
 wifi.secrets
 __pycache__/
 .venv/
+
+# personal order checklists
+docs/v2-order.md
+docs/v2-order.pdf
