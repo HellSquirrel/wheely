@@ -7,8 +7,8 @@ Boards are not screwed down: the printed chassis holds the Perma-Proto in a tray
 ## The Pi Hut / Pimoroni
 
 - [ ] 1 × Raspberry Pi Pico 2 WH (headers pre-soldered)
-- [ ] 1 × Pimoroni LiPo Amigo Pro
-- [ ] 1 × Pimoroni LiPo battery 2000 mAh, protected, JST-PH (1000 mAh if space is tight)
+- [ ] 1 × Pimoroni LiPo Amigo Pro (Pi Hut lists the Pro as unavailable; Pimoroni's shop has it, SKU PIM612)
+- [ ] 1 × 3.7 V LiPo 2000 mAh with JST-PH plug and built-in protection: Pi Hut's PKCell 2000 mAh (60 × 38 × 8 mm, £10) or Pimoroni's 2000 mAh. Check the red wire against the + mark on the Amigo Pro before plugging in
 - [ ] 1 × Adafruit DRV8833 DC motor driver breakout
 - [ ] 1 × RCWL-1601 ultrasonic sensor (3.3 V, HC-SR04 footprint)
 - [ ] 1 × Full-size breadboard, 830 tie points
@@ -42,5 +42,5 @@ Boards are not screwed down: the printed chassis holds the Perma-Proto in a tray
 1. Motors on carpet at cell voltage (3.3–4.2 V): decides the step-up.
 2. Pico from the cell through the Schottky, USB plugged and unplugged: no reboot.
 3. Power button through the Amigo Pro SW pads: one press on, one press off, LED follows.
-4. Motor stall with both wheels held: if the Amigo Pro's protection cuts out, feed the driver's VM from the VBAT pin instead of the device output.
+4. Motor stall with both wheels held: the Amigo Pro's protector (XB6096I2S) is likely to trip near 1 A, so plan on feeding the driver's VM from the VBAT pin (raw battery) and let the Pico's 3V3 on SLP put the driver to sleep when the robot is off, as in v1. The cell's own protection covers under-voltage on that path.
 5. Reset via RUN; flash via `boot` over Bluetooth with the panel USB.
