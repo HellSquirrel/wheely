@@ -8,7 +8,7 @@ Boards are not screwed down: the printed chassis holds the Perma-Proto in a tray
 
 - [ ] 1 × Raspberry Pi Pico 2 WH (headers pre-soldered)
 - [ ] 1 × Pimoroni LiPo Amigo Pro (Pi Hut lists the Pro as unavailable; Pimoroni's shop has it, SKU PIM612)
-- [ ] 1 × 3.7 V LiPo 2000 mAh with JST-PH plug and built-in protection: Pi Hut's PKCell 2000 mAh (60 × 38 × 8 mm, £10) or Pimoroni's 2000 mAh. Check the red wire against the + mark on the Amigo Pro before plugging in
+- [ ] 1 × PKCell 2000 mAh 3.7 V LiPo, JST-PH plug, built-in protection (60 × 38 × 8 mm, £10, thepihut.com/products/2000mah-3-7v-lipo-battery). Check the red wire against the + mark on the Amigo Pro before plugging in
 - [ ] 1 × Adafruit DRV8833 DC motor driver breakout
 - [ ] 1 × RCWL-1601 ultrasonic sensor (3.3 V, HC-SR04 footprint)
 - [ ] 1 × Full-size breadboard, 830 tie points
